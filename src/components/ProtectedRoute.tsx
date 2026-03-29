@@ -1,12 +1,12 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
   allowedRoles: UserRole[];
+  children?: React.ReactNode;
 }
 
-const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
   const { user, isAuthenticated } = useAuth();
 
   if (!isAuthenticated || !user) {
@@ -22,7 +22,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     return <Navigate to={redirectMap[user.role]} replace />;
   }
 
-  return <>{children}</>;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 export default ProtectedRoute;
