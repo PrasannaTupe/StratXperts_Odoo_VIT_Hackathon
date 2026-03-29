@@ -62,3 +62,13 @@ def get_company_users(company_id: int, db: Session = Depends(get_db)):
     if not users:
         return []
     return users
+
+@router.get("/managers/{company_id}")
+def get_managers(company_id: int, db: Session = Depends(get_db)):
+    # Returns only users who are managers/approvers in this company
+    managers = db.query(models.User).filter(
+        models.User.company_id == company_id,
+        models.User.is_manager_approver == True
+    ).all()
+    
+    return [{"id": m.id, "name": m.name} for m in managers]
