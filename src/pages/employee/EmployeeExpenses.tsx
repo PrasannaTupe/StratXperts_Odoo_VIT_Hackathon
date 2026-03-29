@@ -8,7 +8,6 @@ import AnomalyBadge from '@/components/shared/AnomalyBadge';
 import CurrencyDisplay from '@/components/shared/CurrencyDisplay';
 import AnimatedCounter from '@/components/shared/AnimatedCounter';
 import { mockExpenses } from '@/data/mockData';
-import { ExpenseStatus } from '@/data/types';
 
 const stages = [
   { key: 'all', label: 'All' },
@@ -22,19 +21,35 @@ const EmployeeExpenses = () => {
   const navigate = useNavigate();
   const [activeStage, setActiveStage] = useState<string>('all');
   const [search, setSearch] = useState('');
+  
+  // NEW: State to hold merged local and mock data
+  const [allExpenses, setAllExpenses] = useState<any[]>([]);
 
-  useEffect(() => { document.title = 'ReimburseAI — My Expenses'; }, []);
+  useEffect(() => { 
+    document.title = 'ReimburseAI — My Expenses'; 
+    
+    // Load local storage data and merge with mock data
+    const localData = localStorage.getItem('my_expenses');
+    if (localData) {
+      const parsedLocal = JSON.parse(localData);
+      // We combine them so new submissions appear alongside existing mocks
+      setAllExpenses([...parsedLocal, ...mockExpenses]);
+    } else {
+      setAllExpenses(mockExpenses);
+    }
+  }, []);
 
-  const filtered = mockExpenses.filter(e => {
+  const filtered = allExpenses.filter(e => {
     if (activeStage !== 'all' && e.status !== activeStage) return false;
     if (search && !e.description.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const totalAmount = mockExpenses.reduce((a, e) => a + e.amount_in_company_currency, 0);
-  const pending = mockExpenses.filter(e => e.status === 'pending').length;
-  const approved = mockExpenses.filter(e => e.status === 'approved').length;
-  const rejected = mockExpenses.filter(e => e.status === 'rejected').length;
+  // Stats calculated from the merged list
+  const totalAmount = allExpenses.reduce((a, e) => a + (e.amount_in_company_currency || 0), 0);
+  const pending = allExpenses.filter(e => e.status === 'pending').length;
+  const approved = allExpenses.filter(e => e.status === 'approved').length;
+  const rejected = allExpenses.filter(e => e.status === 'rejected').length;
 
   return (
     <div className="pb-20 lg:pb-0 space-y-6">
@@ -44,11 +59,11 @@ const EmployeeExpenses = () => {
         </button>
       } />
 
-      {/* Summary */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-card p-4">
           <p className="text-xs text-muted-foreground">Total Submitted</p>
-          <p className="text-xl font-bold font-display"><AnimatedCounter value={mockExpenses.length} /></p>
+          <p className="text-xl font-bold font-display"><AnimatedCounter value={allExpenses.length} /></p>
         </div>
         <div className="glass-card p-4">
           <p className="text-xs text-muted-foreground">Total Amount</p>
@@ -64,7 +79,7 @@ const EmployeeExpenses = () => {
         </div>
       </div>
 
-      {/* Pipeline */}
+      {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {stages.map(s => (
           <button key={s.key} onClick={() => setActiveStage(s.key)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStage === s.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
@@ -73,13 +88,13 @@ const EmployeeExpenses = () => {
         ))}
       </div>
 
-      {/* Search */}
+      {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by description..." className="w-full bg-muted rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 border border-border placeholder:text-muted-foreground" />
       </div>
 
-      {/* Table */}
+      {/* Desktop Table */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
@@ -105,7 +120,16 @@ const EmployeeExpenses = () => {
                   <td className="p-4">
                     <div className="flex gap-1">
                       <button onClick={() => navigate(`/employee/expenses/${exp.id}`)} className="p-1.5 rounded hover:bg-muted transition-colors"><Eye className="w-4 h-4 text-muted-foreground" /></button>
-                      {exp.status === 'draft' && <button className="p-1.5 rounded hover:bg-muted transition-colors"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
+                      
+                      {/* UPDATED: Edit Icon now routes to the edit path */}
+                      {exp.status === 'draft' && (
+                        <button 
+                          onClick={() => navigate(`/employee/expenses/edit/${exp.id}`)} 
+                          className="p-1.5 rounded hover:bg-muted transition-colors"
+                        >
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -113,10 +137,11 @@ const EmployeeExpenses = () => {
             </tbody>
           </table>
         </div>
-        {/* Mobile */}
+
+        {/* Mobile View */}
         <div className="md:hidden divide-y divide-border">
           {filtered.map(exp => (
-            <div key={exp.id} onClick={() => navigate(`/employee/expenses/${exp.id}`)} className={`p-4 space-y-2 cursor-pointer hover:bg-muted/30 ${exp.is_anomaly ? 'border-l-2 border-l-status-pending' : ''}`}>
+            <div key={exp.id} onClick={() => exp.status === 'draft' ? navigate(`/employee/expenses/edit/${exp.id}`) : navigate(`/employee/expenses/${exp.id}`)} className={`p-4 space-y-2 cursor-pointer hover:bg-muted/30 ${exp.is_anomaly ? 'border-l-2 border-l-status-pending' : ''}`}>
               <div className="flex justify-between items-start">
                 <div><p className="font-medium text-sm">{exp.description}</p><p className="text-xs text-muted-foreground">{exp.date} · {exp.category}</p></div>
                 <StatusBadge status={exp.status} />
@@ -126,6 +151,7 @@ const EmployeeExpenses = () => {
             </div>
           ))}
         </div>
+
         {filtered.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-muted-foreground mb-3">No expenses found</p>

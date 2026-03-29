@@ -5,9 +5,50 @@ import { Upload, Sparkles, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { EXPENSE_CATEGORIES } from '@/data/types';
 import toast from 'react-hot-toast';
+import { useParams } from 'react-router-dom';
 
 const NewExpense = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
+  
+  // Update Initial State to check for existing data if 'id' exists
+  useEffect(() => {
+    if (id) {
+      const localData = localStorage.getItem('my_expenses');
+      if (localData) {
+        const found = JSON.parse(localData).find((e: any) => e.id === Number(id));
+        if (found) setForm(found);
+      }
+    }
+  }, [id]);
+
+  const handleSubmit = (asDraft = false) => {
+    if (!form.description || !form.amount) { toast.error('Fill required fields'); return; }
+
+    const newExpense = {
+      ...form,
+      id: id ? Number(id) : Date.now(), // Use existing ID or create new
+      status: asDraft ? 'draft' : 'pending',
+      amount_in_company_currency: convertedAmount || Number(form.amount),
+      is_anomaly: false
+    };
+
+    // Save to LocalStorage
+    const existing = JSON.parse(localStorage.getItem('my_expenses') || '[]');
+    let updated;
+    if (id) {
+        updated = existing.map((e: any) => e.id === Number(id) ? newExpense : e);
+    } else {
+        updated = [...existing, newExpense];
+    }
+    
+    localStorage.setItem('my_expenses', JSON.stringify(updated));
+
+    toast.success(asDraft ? 'Saved as draft' : 'Expense submitted for approval');
+    navigate('/employee/expenses');
+  };
+
+  
   const [form, setForm] = useState({
     description: '', category: 'Travel', paid_by: 'Amit Kumar', remarks: '',
     date: new Date().toISOString().split('T')[0], currency: 'INR', amount: '',
@@ -44,11 +85,11 @@ const NewExpense = () => {
     }, 2000);
   };
 
-  const handleSubmit = (asDraft = false) => {
-    if (!form.description || !form.amount) { toast.error('Fill required fields'); return; }
-    toast.success(asDraft ? 'Saved as draft' : 'Expense submitted for approval');
-    navigate('/employee/expenses');
-  };
+  // const handleSubmit = (asDraft = false) => {
+  //   if (!form.description || !form.amount) { toast.error('Fill required fields'); return; }
+  //   toast.success(asDraft ? 'Saved as draft' : 'Expense submitted for approval');
+  //   navigate('/employee/expenses');
+  // };
 
   return (
     <div className="pb-20 lg:pb-0 max-w-5xl mx-auto">

@@ -58,6 +58,7 @@ const App = () => (
               <Route path="/employee/expenses" element={<EmployeeExpenses />} />
               <Route path="/employee/expenses/new" element={<NewExpense />} />
               <Route path="/employee/expenses/:id" element={<ExpenseDetail />} />
+              <Route path="/employee/expenses/edit/:id" element={<NewExpense />} />
             </Route>
 
             {/* Manager routes */}
